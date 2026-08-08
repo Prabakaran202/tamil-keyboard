@@ -1,0 +1,43 @@
+# Makefile for BDH Tamizhi Keyboard Daemon (Termux Edition)
+
+CC = clang
+CFLAGS = -Wall -Wextra -Iinclude -O2
+LDFLAGS = 
+
+SRC_DIR = src
+OBJ_DIR = obj
+BIN_DIR = bin
+
+# Install target for Termux
+PREFIX ?= /data/data/com.termux/files/usr
+
+# Find all .c files in src directory
+SOURCES = $(wildcard $(SRC_DIR)/*.c)
+OBJECTS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SOURCES))
+
+# Output binary name
+TARGET = $(BIN_DIR)/tamizhi-keymap
+
+all: directories $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+directories:
+	@mkdir -p $(OBJ_DIR)
+	@mkdir -p $(BIN_DIR)
+
+clean:
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
+
+install: $(TARGET)
+	@mkdir -p $(PREFIX)/bin
+	@cp $(TARGET) $(PREFIX)/bin/tamizhi-keymap
+	@chmod +x $(PREFIX)/bin/tamizhi-keymap
+	@echo "Installation successful! You can now run 'tamizhi-keymap' from anywhere."
+
+.PHONY: all directories clean install
+
