@@ -2,7 +2,7 @@
 #include <string.h>
 
 // தற்காலிக பஃபர் (Buffer to hold preceding consonants/vowels)
-static uint32_T last_consonant = 0;
+static uint32_t last_consonant = 0;
 static char output_buffer[32];
 
 // ஷேப்பிங் இன்ஜின் லாஜிக்
