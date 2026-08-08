@@ -21,6 +21,14 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    // 🔥 THE MAGIC LINE: லினக்ஸிடம் இருந்து விசைப்பலகையை முழுமையாகக் கைப்பற்றுதல் (Grab)
+    // இதுதான் ஆங்கில எழுத்துக்கள் ஸ்க்ரீனில் பிரிண்ட் ஆவதைத் தடுக்கும்!
+    if (ioctl(fd, EVIOCGRAB, 1) < 0) {
+        perror("Failed to grab keyboard (EVIOCGRAB)");
+        close(fd);
+        return EXIT_FAILURE;
+    }
+
     printf("Successfully connected to %s. Listening for keys...\n", KEYBOARD_DEVICE);
     printf("Press CTRL+C to exit.\n");
 
@@ -44,7 +52,8 @@ int main() {
         }
     }
 
+    // விசைப்பலகையை மீண்டும் லினக்ஸிடமே திருப்பிக் கொடுத்தல் (சரியான முறையில் வெளியேறினால்)
+    ioctl(fd, EVIOCGRAB, 0);
     close(fd);
     return EXIT_SUCCESS;
 }
-
