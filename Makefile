@@ -1,6 +1,7 @@
-# Makefile for BDH Tamizhi Keyboard Daemon (Termux Edition)
+# Makefile for BDH Tamizhi Keyboard Daemon (Universal Edition)
 
-CC = clang
+# 🔥 FIX 1: Allow system default compiler (gcc for Arch, clang for Termux)
+CC ?= gcc
 CFLAGS = -Wall -Wextra -Iinclude -O2
 LDFLAGS = 
 
@@ -8,8 +9,8 @@ SRC_DIR = src
 OBJ_DIR = obj
 BIN_DIR = bin
 
-# Install target for Termux
-PREFIX ?= /data/data/com.termux/files/usr
+# 🔥 FIX 2: Default to standard Linux path. (Termux users can override this)
+PREFIX ?= /usr/local
 
 # Find all .c files in src directory
 SOURCES = $(wildcard $(SRC_DIR)/*.c)
@@ -40,4 +41,3 @@ install: $(TARGET)
 	@echo "Installation successful! You can now run 'tamizhi-keymap' from anywhere."
 
 .PHONY: all directories clean install
-
