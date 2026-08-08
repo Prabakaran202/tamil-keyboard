@@ -3,41 +3,52 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/input.h>
+#include <sys/ioctl.h> // TIOCSTI-க்காக
 #include "mapping.h"
 
-#define KEYBOARD_DEVICE "/dev/input/event5" // உங்கள் SEMICO Keyboard
+#define KEYBOARD_DEVICE "/dev/input/event5"
 
-// நாம் uinput_kbd.c ல் உருவாக்கிய ஃபங்ஷன்களை அறிவித்தல்
 int create_virtual_keyboard();
-void type_unicode(int fd, const char* hex_code);
 void emit_key(int fd, int keycode, int value);
+
+// 🔥 The TTY Hacker: டெர்மினலின் உள்ளே பைட்டுகளை உட்செலுத்தும் வித்தை!
+void inject_tty_string(const char* str) {
+    // தற்போது ஆக்டிவாக உள்ள TTY-ஐத் திறக்கிறோம்
+    int fd = open("/dev/tty", O_WRONLY);
+    if (fd < 0) return;
+
+    // ஒவ்வொரு UTF-8 பைட்டையும் தனித்தனியாக டெர்மினலுக்குள் செலுத்துகிறோம்
+    while (*str) {
+        ioctl(fd, TIOCSTI, str);
+        str++;
+    }
+    close(fd);
+}
 
 int main() {
     struct input_event ev;
     
-    // 1. விர்ச்சுவல் கீபோர்டை உருவாக்குதல்
-    int v_kbd = create_virtual_keyboard();
+    int v_kbd = create_virtual_keyboard(); // Backspace, Enter வேலை செய்ய இது தேவை
     if (v_kbd < 0) return EXIT_FAILURE;
 
-    // 2. நிஜ கீபோர்டைத் திறத்தல்
     int real_kbd = open(KEYBOARD_DEVICE, O_RDONLY);
     if (real_kbd < 0 || ioctl(real_kbd, EVIOCGRAB, 1) < 0) {
         perror("Failed to open or grab real keyboard");
         return EXIT_FAILURE;
     }
 
-    printf("[BDH Tamizhi] Daemon Running! Go to any Text Editor and type!\n");
+    printf("[BDH Tamizhi] TTY Injector Running! Type anywhere in the terminal!\n");
 
     while (1) {
         if (read(real_kbd, &ev, sizeof(ev)) > 0) {
-            if (ev.type == EV_KEY && ev.value == 1) { // Key Press Only
-                const char* hex_code = get_tamizhi_char(ev.code);
+            if (ev.type == EV_KEY && ev.value == 1) { // Key Press
+                const char* tamil_char = get_tamizhi_char(ev.code);
                 
-                if (hex_code != NULL) {
-                    // மேப் செய்யப்பட்டிருந்தால், uinput மூலம் தமிழை டைப் செய்!
-                    type_unicode(v_kbd, hex_code);
+                if (tamil_char != NULL) {
+                    // 🎯 தமிழ் பட்டன் என்றால், TTY-க்குள் நேரடியாக இன்ஜெக்ட் செய்!
+                    inject_tty_string(tamil_char);
                 } else {
-                    // மேப் செய்யப்படாத பட்டன்களை (எ.கா: Enter, Backspace) அப்படியே அனுப்புதல்
+                    // Enter, Backspace, Arrow keys என்றால் விர்ச்சுவல் கீபோர்டு மூலம் அனுப்பு
                     emit_key(v_kbd, ev.code, 1);
                     emit_key(v_kbd, ev.code, 0);
                 }
