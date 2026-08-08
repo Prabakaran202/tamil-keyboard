@@ -3,57 +3,50 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <linux/input.h>
-#include "mapping.h" // நாம் உருவாக்கிய புதிய லாஜிக் ஃபைல்!
+#include "mapping.h"
 
-// 🔥 FIX: லேப்டாப் கீபோர்டைத் தவிர்க்காமல், எக்ஸ்டர்னல் SEMICO USB Keyboard-ஐ மட்டும் குறித்தல்
-#define KEYBOARD_DEVICE "/dev/input/event5" 
+#define KEYBOARD_DEVICE "/dev/input/event5" // உங்கள் SEMICO Keyboard
+
+// நாம் uinput_kbd.c ல் உருவாக்கிய ஃபங்ஷன்களை அறிவித்தல்
+int create_virtual_keyboard();
+void type_unicode(int fd, const char* hex_code);
+void emit_key(int fd, int keycode, int value);
 
 int main() {
-    int fd;
     struct input_event ev;
+    
+    // 1. விர்ச்சுவல் கீபோர்டை உருவாக்குதல்
+    int v_kbd = create_virtual_keyboard();
+    if (v_kbd < 0) return EXIT_FAILURE;
 
-    printf("[BDH Tamizhi] Starting Keyboard Daemon for External USB Keyboard...\n");
-
-    // Open the keyboard device file (Requires SUDO/Root)
-    fd = open(KEYBOARD_DEVICE, O_RDONLY);
-    if (fd < 0) {
-        perror("Failed to open keyboard device (Are you root?)");
-        printf("Hint: Please run this on your Linux machine with sudo!\n");
+    // 2. நிஜ கீபோர்டைத் திறத்தல்
+    int real_kbd = open(KEYBOARD_DEVICE, O_RDONLY);
+    if (real_kbd < 0 || ioctl(real_kbd, EVIOCGRAB, 1) < 0) {
+        perror("Failed to open or grab real keyboard");
         return EXIT_FAILURE;
     }
 
-    // 🔥 THE MAGIC LINE: லினக்ஸிடம் இருந்து விசைப்பலகையை முழுமையாகக் கைப்பற்றுதல் (Grab)
-    if (ioctl(fd, EVIOCGRAB, 1) < 0) {
-        perror("Failed to grab keyboard (EVIOCGRAB)");
-        close(fd);
-        return EXIT_FAILURE;
-    }
+    printf("[BDH Tamizhi] Daemon Running! Go to any Text Editor and type!\n");
 
-    printf("Successfully connected to %s (SEMICO USB Keyboard). Listening for keys...\n", KEYBOARD_DEVICE);
-    printf("Press CTRL+C to exit.\n");
-
-    // Infinite loop to read raw physical keypresses
     while (1) {
-        if (read(fd, &ev, sizeof(struct input_event)) > 0) {
-            // Check only for Key Press (value = 1)
-            if (ev.type == EV_KEY && ev.value == 1) {
+        if (read(real_kbd, &ev, sizeof(ev)) > 0) {
+            if (ev.type == EV_KEY && ev.value == 1) { // Key Press Only
+                const char* hex_code = get_tamizhi_char(ev.code);
                 
-                // Get the mapped Tamizhi character
-                const char* tamil_char = get_tamizhi_char(ev.code);
-                
-                if (tamil_char != NULL) {
-                    // Mapped key found!
-                    printf("Tamizhi Key Pressed: %s\n", tamil_char);
+                if (hex_code != NULL) {
+                    // மேப் செய்யப்பட்டிருந்தால், uinput மூலம் தமிழை டைப் செய்!
+                    type_unicode(v_kbd, hex_code);
                 } else {
-                    // Key not mapped in our switch case yet
-                    printf("Unmapped Key Code: %d\n", ev.code);
+                    // மேப் செய்யப்படாத பட்டன்களை (எ.கா: Enter, Backspace) அப்படியே அனுப்புதல்
+                    emit_key(v_kbd, ev.code, 1);
+                    emit_key(v_kbd, ev.code, 0);
                 }
             }
         }
     }
 
-    // விசைப்பலகையை மீண்டும் லினக்ஸிடமே திருப்பிக் கொடுத்தல்
-    ioctl(fd, EVIOCGRAB, 0);
-    close(fd);
+    ioctl(real_kbd, EVIOCGRAB, 0);
+    close(real_kbd);
+    close(v_kbd);
     return EXIT_SUCCESS;
 }
