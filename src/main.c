@@ -5,13 +5,14 @@
 #include <linux/input.h>
 #include "mapping.h" // நாம் உருவாக்கிய புதிய லாஜிக் ஃபைல்!
 
-#define KEYBOARD_DEVICE "/dev/input/event0" 
+// 🔥 FIX: லேப்டாப் கீபோர்டைத் தவிர்க்காமல், எக்ஸ்டர்னல் SEMICO USB Keyboard-ஐ மட்டும் குறித்தல்
+#define KEYBOARD_DEVICE "/dev/input/event5" 
 
 int main() {
     int fd;
     struct input_event ev;
 
-    printf("[BDH Tamizhi] Starting Keyboard Daemon...\n");
+    printf("[BDH Tamizhi] Starting Keyboard Daemon for External USB Keyboard...\n");
 
     // Open the keyboard device file (Requires SUDO/Root)
     fd = open(KEYBOARD_DEVICE, O_RDONLY);
@@ -22,14 +23,13 @@ int main() {
     }
 
     // 🔥 THE MAGIC LINE: லினக்ஸிடம் இருந்து விசைப்பலகையை முழுமையாகக் கைப்பற்றுதல் (Grab)
-    // இதுதான் ஆங்கில எழுத்துக்கள் ஸ்க்ரீனில் பிரிண்ட் ஆவதைத் தடுக்கும்!
     if (ioctl(fd, EVIOCGRAB, 1) < 0) {
         perror("Failed to grab keyboard (EVIOCGRAB)");
         close(fd);
         return EXIT_FAILURE;
     }
 
-    printf("Successfully connected to %s. Listening for keys...\n", KEYBOARD_DEVICE);
+    printf("Successfully connected to %s (SEMICO USB Keyboard). Listening for keys...\n", KEYBOARD_DEVICE);
     printf("Press CTRL+C to exit.\n");
 
     // Infinite loop to read raw physical keypresses
@@ -52,7 +52,7 @@ int main() {
         }
     }
 
-    // விசைப்பலகையை மீண்டும் லினக்ஸிடமே திருப்பிக் கொடுத்தல் (சரியான முறையில் வெளியேறினால்)
+    // விசைப்பலகையை மீண்டும் லினக்ஸிடமே திருப்பிக் கொடுத்தல்
     ioctl(fd, EVIOCGRAB, 0);
     close(fd);
     return EXIT_SUCCESS;
