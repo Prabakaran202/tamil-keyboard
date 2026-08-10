@@ -1,63 +1,50 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <linux/input.h>
-#include <sys/ioctl.h> // TIOCSTI-க்காக
+#include "keyboard.h"
 #include "mapping.h"
-
-#define KEYBOARD_DEVICE "/dev/input/event5"
-
-int create_virtual_keyboard();
-void emit_key(int fd, int keycode, int value);
-
-// 🔥 The TTY Hacker: டெர்மினலின் உள்ளே பைட்டுகளை உட்செலுத்தும் வித்தை!
-void inject_tty_string(const char* str) {
-    // தற்போது ஆக்டிவாக உள்ள TTY-ஐத் திறக்கிறோம்
-    int fd = open("/dev/tty", O_WRONLY);
-    if (fd < 0) return;
-
-    // ஒவ்வொரு UTF-8 பைட்டையும் தனித்தனியாக டெர்மினலுக்குள் செலுத்துகிறோம்
-    while (*str) {
-        ioctl(fd, TIOCSTI, str);
-        str++;
-    }
-    close(fd);
-}
+#include "unicode.h"
 
 int main() {
-    struct input_event ev;
+    printf("\033[2J\033[H"); // திரையை க்ளீன் செய்ய
+    printf("\033[1;36m=============================================\n");
+    printf(" 🚀 TAMIZHI 1-BYTE KEYBOARD TESTER \n");
+    printf("=============================================\033[0m\n");
+    printf("Type in English (QWERTY) to see Tamizhi output.\n");
+    printf("Press 'Ctrl+C' or type 'EXIT' to quit.\n\n> ");
     
-    int v_kbd = create_virtual_keyboard(); // Backspace, Enter வேலை செய்ய இது தேவை
-    if (v_kbd < 0) return EXIT_FAILURE;
-
-    int real_kbd = open(KEYBOARD_DEVICE, O_RDONLY);
-    if (real_kbd < 0 || ioctl(real_kbd, EVIOCGRAB, 1) < 0) {
-        perror("Failed to open or grab real keyboard");
-        return EXIT_FAILURE;
-    }
-
-    printf("[BDH Tamizhi] TTY Injector Running! Type anywhere in the terminal!\n");
-
+    enable_raw_mode();
+    
     while (1) {
-        if (read(real_kbd, &ev, sizeof(ev)) > 0) {
-            if (ev.type == EV_KEY && ev.value == 1) { // Key Press
-                const char* tamil_char = get_tamizhi_char(ev.code);
-                
-                if (tamil_char != NULL) {
-                    // 🎯 தமிழ் பட்டன் என்றால், TTY-க்குள் நேரடியாக இன்ஜெக்ட் செய்!
-                    inject_tty_string(tamil_char);
-                } else {
-                    // Enter, Backspace, Arrow keys என்றால் விர்ச்சுவல் கீபோர்டு மூலம் அனுப்பு
-                    emit_key(v_kbd, ev.code, 1);
-                    emit_key(v_kbd, ev.code, 0);
-                }
-            }
+        char key = get_keypress();
+        
+        // Ctrl+C அல்லது 'Q' (Exit condition for testing) அழுத்தினால் வெளியேற
+        if (key == 3) { 
+            break;
         }
-    }
 
-    ioctl(real_kbd, EVIOCGRAB, 0);
-    close(real_kbd);
-    close(v_kbd);
-    return EXIT_SUCCESS;
+        // State மாறுவதற்கு முன், பழைய State என்ன என்று சேமித்து வைக்கிறோம்
+        int previous_state = current_mei_state;
+        
+        // State Machine-க்கு பட்டனை அனுப்பி 1-byte தமிழ் கோடை வாங்குகிறோம்
+        unsigned char tz_code = process_key(key);
+        
+        // --- The Backspace Magic ---
+        // ஏற்கனவே ஒரு மெய் எழுத்து (உ.ம்: 'க்') திரையில் இருந்து, 
+        // இப்போது வந்த கோடு உயிர்மெய் (0x20+) ஆக இருந்தால், 
+        // திரையில் உள்ள பழைய 'க்'-ஐ அழிக்க வேண்டும்.
+        if (previous_state != -1 && tz_code >= 0x20) {
+            // லினக்ஸ் டெர்மினலில் முந்தைய UTF-8 எழுத்தை அழிக்க Backspace அனுப்புகிறோம்
+            printf("\b\b  \b\b"); // Terminal-ஐ பொறுத்து இதை அட்ஜஸ்ட் செய்ய வேண்டி வரலாம்
+        }
+        
+        // 1-byte கோடை 3-byte UTF-8 ஆக மாற்றி ஸ்கிரீனில் பிரிண்ட் செய்கிறோம்
+        print_tz_char(tz_code);
+        
+        // உடனுக்குடன் ஸ்கிரீனில் தெரியவைக்க Buffer-ஐ Flush செய்கிறோம்
+        fflush(stdout);
+    }
+    
+    disable_raw_mode();
+    printf("\n\n\033[1;32mExiting Tamizhi Tester... Nandri!\033[0m\n");
+    return 0;
 }
