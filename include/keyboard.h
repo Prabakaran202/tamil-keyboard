@@ -1,8 +1,11 @@
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+#ifndef TAMIZHI_KEYBOARD_H
+#define TAMIZHI_KEYBOARD_H
 
-int keyboard_open(const char *device_path);
-void keyboard_listen(int fd);
-void keyboard_close(int fd);
+// Raw Mode-ஐ ஆன்/ஆஃப் செய்யும் ஃபங்ஷன்கள்
+void enable_raw_mode();
+void disable_raw_mode();
 
-#endif
+// யூசர் அழுத்தும் ஒரு எழுத்தைப் படிக்கும் ஃபங்ஷன்
+char get_keypress();
+
+#endif // TAMIZHI_KEYBOARD_H
