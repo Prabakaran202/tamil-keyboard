@@ -6,7 +6,7 @@ static uint32_t last_consonant = 0;
 static char output_buffer[32];
 
 // ஷேப்பிங் இன்ஜின் லாஜிக்
-const char* shaper_process_key(uint32_T unicode_char) {
+const char* shaper_process_key(uint32_t unicode_char) {
     // இ在這 இடத்தில்தான் தமிழ் ரீ-ஆர்டரிங் மற்றும் ஷேப்பிங் விதிகளைச் சேர்க்கப் போகிறோம்
     // உதாரணம்: Consonant + Pulli + Matra handling
     
