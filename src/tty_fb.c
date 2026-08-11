@@ -4,7 +4,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/mmap.h>
+#include </mapping.h>
+
 #include <linux/fb.h>
 
 // புதிய ஹெடர் ஃபைலை இணைக்கிறோம்
