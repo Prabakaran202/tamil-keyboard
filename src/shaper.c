@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include "tamil.h"
+#include "shaper.h" 
 
 // =========================================================
 // 🌐 UNICODE MAPPING TABLES (OS-க்குத் தேவையான குறியீடுகள்)
