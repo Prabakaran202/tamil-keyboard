@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include </mapping.h>
+#include <sys/mapping.h>
 
 #include <linux/fb.h>
 
