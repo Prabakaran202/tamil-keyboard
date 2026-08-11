@@ -115,21 +115,3 @@ void type_tamizhi_char(int fd, unsigned char tz_char) {
         type_unicode(fd, hex_str);
     }
 }
-
-// =========================================================
-// 4. டெஸ்டிங் (Testing)
-// =========================================================
-int main() {
-    int fd = create_virtual_keyboard();
-    if (fd < 0) return -1;
-
-    printf("Keyboard ready! Open a text editor in 3 seconds...\n");
-    sleep(3);
-
-    printf("Typing 'கா' (1-Byte: 0x21)...\n");
-    // 0x21 என்பது உங்க tamil.h படி 'கா' (TZ_UYIRMEI(0, 1))
-    type_tamizhi_char(fd, 0x21); 
-
-    close(fd);
-    return 0;
-}
