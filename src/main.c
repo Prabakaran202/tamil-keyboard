@@ -1,60 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "keyboard.h"
 #include "mapping.h"
 #include "unicode.h"
+// Framebuffer ஹெடரை இணைக்கிறோம்
+#include "../include/tty_fb.h" 
+
+// கர்சரின் இருப்பிடத்தைக் கணக்கிட Global Variables
+int cursor_x = 50;  // ஸ்கிரீனில் தொடங்கும் X இடம்
+int cursor_y = 50;  // ஸ்கிரீனில் தொடங்கும் Y இடம்
+const int FONT_WIDTH = 30; // நம்ம 30-பிக்சல் லாஜிக்
 
 int main() {
-    printf("\033[2J\033[H"); // திரையை க்ளீன் செய்ய
+    printf("\033[2J\033[H");
     printf("\033[1;36m=============================================\n");
-    printf(" 🚀 TAMIZHI 1-BYTE KEYBOARD TESTER \n");
+    printf(" 🚀 BDH TAMIZHI TERMINAL ENGINE \n");
     printf("=============================================\033[0m\n");
-    printf("Type in English (QWERTY) to see Tamizhi output.\n");
-    printf("Press 'Backspace' to delete, 'Ctrl+C' to quit.\n\n> ");
+    
+    // 1. Framebuffer-ஐ துவக்குதல்
+    if (fb_init() < 0) {
+        printf("[Error] BDH Framebuffer failed!\n");
+        return -1;
+    }
+    printf("[System] Framebuffer Initialized for Rendering.\n");
     
     enable_raw_mode();
     
     while (1) {
         char key = get_keypress();
         
-        // 1. Ctrl+C அழுத்தினால் வெளியேற (ASCII 3)
-        if (key == 3) { 
+        if (key == 3) { // Ctrl+C
             break;
         }
 
-        // 2. 🔥 BACKSPACE / DELETE பட்டன் லாஜிக் (ASCII 127 or 8)
+        // BACKSPACE லாஜிக்
         if (key == 127 || key == 8) {
-            // State-ஐ Reset செய்கிறோம் (Pending-ல் உள்ள மெய் எழுத்தை மறக்கச் செய்கிறோம்)
             current_mei_state = -1; 
             
-            // டெர்மினலில் முந்தைய எழுத்தை அழிக்கும் மேஜிக் கமாண்ட் (\b = Backspace)
-            printf("\b\b  \b\b"); 
-            fflush(stdout);
-            continue; // இதை அழித்துவிட்டு அடுத்த கீ-க்காக காத்திருக்க லூப்பைத் தொடர்கிறோம்
+            // கர்சரை ஒரு ஸ்டெப் பின்னாடி கொண்டு வருகிறோம்
+            if (cursor_x >= 50 + FONT_WIDTH) {
+                cursor_x -= FONT_WIDTH;
+                // [TODO]: Framebuffer-ல் அந்த இடத்தை கறுப்பு நிறமாக மாற்றி அழிக்க வேண்டும்
+            }
+            continue; 
         }
 
-        // State மாறுவதற்கு முன், பழைய State என்ன என்று சேமித்து வைக்கிறோம்
         int previous_state = current_mei_state;
-        
-        // State Machine-க்கு பட்டனை அனுப்பி 1-byte தமிழ் கோடை வாங்குகிறோம்
         unsigned char tz_code = process_key(key);
         
         // --- The Internal Backspace Magic ---
-        // ஏற்கனவே ஒரு மெய் எழுத்து (உ.ம்: 'க்') திரையில் இருந்து, 
-        // இப்போது வந்த கோடு உயிர்மெய் (0x20+) ஆக இருந்தால், 
-        // திரையில் உள்ள பழைய 'க்'-ஐ அழிக்க வேண்டும்.
         if (previous_state != -1 && tz_code >= 0x20) {
-            printf("\b\b  \b\b"); 
+            // கர்சரை பின்னாடி நகர்த்தி பழைய 'க்' பிக்சல்களை அழிக்க வேண்டும்
+            if (cursor_x >= 50 + FONT_WIDTH) {
+                cursor_x -= FONT_WIDTH;
+            }
         }
         
-        // 1-byte கோடை 3-byte UTF-8 ஆக மாற்றி ஸ்கிரீனில் பிரிண்ட் செய்கிறோம்
-        print_tz_char(tz_code);
+        // 2. 1-byte கோடை Framebuffer-க்கு அனுப்புதல்
+        // [குறிப்பு: FreeType இணைத்த பிறகு இது உண்மையான எழுத்தை வரையும்]
+        fb_draw_box(cursor_x, cursor_y, FONT_WIDTH, FONT_WIDTH);
         
-        // உடனுக்குடன் ஸ்கிரீனில் தெரியவைக்க Buffer-ஐ Flush செய்கிறோம்
-        fflush(stdout);
+        // அடுத்த எழுத்துக்காக கர்சரை நகர்த்துகிறோம்
+        cursor_x += FONT_WIDTH;
     }
     
     disable_raw_mode();
-    printf("\n\n\033[1;32mExiting Tamizhi Tester... Nandri!\033[0m\n");
+    fb_cleanup(); // Framebuffer-ஐ க்ளீன் செய்கிறோம்
+    printf("\n\n\033[1;32mExiting BDH Terminal Engine... Nandri!\033[0m\n");
     return 0;
 }
